@@ -49,7 +49,7 @@ error() {
 # Print info message
 info() {
   if [ "$VERBOSE" = true ]; then
-    echo -e "${GREEN}Info:${NC} $1"
+    echo -e "${GREEN}Info:${NC} $1" >&2
   fi
 }
 
@@ -174,12 +174,25 @@ read_config() {
   # Source the config file
   # shellcheck source=/dev/null
   source "$CONFIG_FILE"
+  
+  # Trim whitespace and quotes from API key if present
+  if [ -n "${ESSESSEFF_API_KEY:-}" ]; then
+    ESSESSEFF_API_KEY=$(echo "$ESSESSEFF_API_KEY" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
+  fi
 
   # Validate required variables
   local missing_vars=()
 
   if [ -z "${ESSESSEFF_API_KEY:-}" ]; then
     missing_vars+=("ESSESSEFF_API_KEY")
+  else
+    # Validate API key format (should start with "ess_" and be 36 characters)
+    if ! [[ "${ESSESSEFF_API_KEY}" =~ ^ess_[a-zA-Z0-9]{32}$ ]]; then
+      error "Invalid API key format. API key must start with 'ess_' and be 36 characters total."
+      error "Current API key length: ${#ESSESSEFF_API_KEY} characters"
+      error "API key starts with: ${ESSESSEFF_API_KEY:0:4}"
+      exit 1
+    fi
   fi
 
   if [ -z "${ESSESSEFF_ACCOUNT_SLUG:-}" ]; then
@@ -239,9 +252,12 @@ api_request() {
 
   local curl_args=(
     -s
+    -L
     -w "\n%{http_code}"
     -X "$method"
     -H "Authorization: Bearer ${ESSESSEFF_API_KEY}"
+    -H "X-API-Key: ${ESSESSEFF_API_KEY}"
+    -H "User-Agent: essesseff-onboarding-utility/1.0"
   )
 
   if [ -n "$data" ]; then
@@ -263,7 +279,10 @@ api_request() {
   if [ "$http_code" -eq 429 ]; then
     warning "Rate limit exceeded, waiting 10 seconds before retry..."
     sleep 10
-    api_request "$method" "$endpoint" "$data"  # Retry
+    # Retry the request (recursive call)
+    local retry_response
+    retry_response=$(api_request "$method" "$endpoint" "$data")
+    echo "$retry_response"
     return
   fi
 
@@ -349,24 +368,50 @@ check_app_exists() {
   local endpoint="/accounts/${account_slug}/organizations/${org_login}/apps/${app_name}"
   
   sleep 4  # Rate limiting
-  local response
-  response=$(curl -s -w "\n%{http_code}" -X "GET" \
-    -H "Authorization: Bearer ${ESSESSEFF_API_KEY}" \
-    "${ESSESSEFF_API_BASE_URL}${endpoint}")
+  
+  # Use curl with separate output files to reliably get HTTP code
+  local temp_body
+  temp_body=$(mktemp)
+  
+  if [ "$VERBOSE" = true ]; then
+    info "API endpoint: ${ESSESSEFF_API_BASE_URL}${endpoint}"
+    info "API key prefix: ${ESSESSEFF_API_KEY:0:10}..."
+  fi
+
+  # Debug: Show what we're sending
+  if [ "$VERBOSE" = true ]; then
+    info "Sending Authorization header: Bearer ${ESSESSEFF_API_KEY:0:10}..."
+  fi
 
   local http_code
-  http_code=$(echo "$response" | tail -n1)
-  local body
-  body=$(echo "$response" | sed '$d')
+  http_code=$(curl -s -L -w "%{http_code}" -o "$temp_body" -X "GET" \
+    -H "Authorization: Bearer ${ESSESSEFF_API_KEY}" \
+    -H "X-API-Key: ${ESSESSEFF_API_KEY}" \
+    -H "User-Agent: essesseff-onboarding-utility/1.0" \
+    "${ESSESSEFF_API_BASE_URL}${endpoint}")
+
+  if [ "$VERBOSE" = true ]; then
+    info "HTTP status code: $http_code"
+    if [ "$http_code" -ge 400 ]; then
+      info "Response body: $(cat "$temp_body" 2>/dev/null || echo 'N/A')"
+    fi
+  fi
 
   if [ "$http_code" = "404" ]; then
+    info "App does not exist (404)"
+    rm -f "$temp_body"
     return 1  # App does not exist
   elif [ "$http_code" -ge 400 ]; then
     error "Failed to check if app exists: HTTP $http_code"
-    echo "$body" >&2
+    if [ -f "$temp_body" ]; then
+      cat "$temp_body" >&2
+    fi
+    rm -f "$temp_body"
     exit 1
   fi
 
+  info "App exists (HTTP $http_code)"
+  rm -f "$temp_body"
   return 0  # App exists
 }
 
@@ -375,7 +420,7 @@ fetch_template_details() {
   local template_name=$1
   local is_global=$2
 
-  info "Fetching template details for '$template_name' (global: $is_global)..."
+  info "Fetching template details for '$template_name' (global: $is_global)..." >&2
 
   local endpoint
   if [ "$is_global" = "true" ]; then
@@ -408,6 +453,13 @@ create_app() {
   # Fetch template details
   local template_response
   template_response=$(fetch_template_details "$TEMPLATE_NAME" "$TEMPLATE_IS_GLOBAL")
+
+  # Validate template response is valid JSON
+  if ! echo "$template_response" | jq empty 2>/dev/null; then
+    error "Invalid JSON response from template API"
+    error "Response: $template_response"
+    exit 1
+  fi
 
   # Extract template information
   local template_org_login
@@ -503,8 +555,10 @@ poll_app_creation() {
     sleep 4  # Rate limiting
     local endpoint="/accounts/${account_slug}/organizations/${org_login}/apps/${app_name}"
     local response
-    response=$(curl -s -w "\n%{http_code}" -X "GET" \
+    response=$(curl -s -L -w "\n%{http_code}" -X "GET" \
       -H "Authorization: Bearer ${ESSESSEFF_API_KEY}" \
+      -H "X-API-Key: ${ESSESSEFF_API_KEY}" \
+      -H "User-Agent: essesseff-onboarding-utility/1.0" \
       "${ESSESSEFF_API_BASE_URL}${endpoint}")
 
     local http_code
@@ -561,8 +615,10 @@ setup_argocd() {
   
   sleep 4  # Rate limiting
   local response
-  response=$(curl -s -w "\n%{http_code}" -X "GET" \
+  response=$(curl -s -L -w "\n%{http_code}" -X "GET" \
     -H "Authorization: Bearer ${ESSESSEFF_API_KEY}" \
+    -H "X-API-Key: ${ESSESSEFF_API_KEY}" \
+    -H "User-Agent: essesseff-onboarding-utility/1.0" \
     "${ESSESSEFF_API_BASE_URL}/accounts/${ESSESSEFF_ACCOUNT_SLUG}/organizations/${GITHUB_ORG}/apps/${APP_NAME}/notifications-secret")
 
   local http_code
