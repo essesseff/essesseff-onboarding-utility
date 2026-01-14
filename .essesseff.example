@@ -1,0 +1,22 @@
+# essesseff API Configuration (required for onboarding utility)
+ESSESSEFF_API_KEY=your-essesseff-api-key-here
+# ESSESSEFF_API_BASE_URL=https://essesseff.com/api/v1  # Optional - defaults to https://essesseff.com/api/v1
+ESSESSEFF_ACCOUNT_SLUG=my-team
+
+# GitHub Machine User Credentials (required for Argo CD setup)
+# See: https://www.essesseff.com/docs/deployment/github-argocd-machine-user-setup#step-0:-tldr---quick-setup-for-essesseff-onboarding-utility
+ARGOCD_MACHINE_USER="your-argocd-machine-username"
+GITHUB_TOKEN="ghp_yourGitHubPersonalAccessToken"
+ARGOCD_MACHINE_EMAIL="your-email@example.com"
+
+# Organization/App Config (required)
+GITHUB_ORG="my-org"
+APP_NAME="my-app"
+
+# Template Configuration (required for --create-app)
+TEMPLATE_NAME="essesseff-hello-world-go-template"
+TEMPLATE_IS_GLOBAL=true
+
+# App Configuration (optional for --create-app)
+APP_DESCRIPTION="My new essesseff app"
+REPOSITORY_VISIBILITY="private"
