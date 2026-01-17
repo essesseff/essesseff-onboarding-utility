@@ -163,7 +163,6 @@ Enable verbose output for debugging:
 2. Checks if app already exists in the specified organization
 3. Fetches template details (global or account-specific based on configuration)
 4. Creates the essesseff app via API (creates all 9 repositories)
-5. Polls for app creation completion
 
 ### Argo CD Setup Process
 

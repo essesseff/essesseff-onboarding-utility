@@ -255,7 +255,6 @@ api_request() {
     -L
     -w "\n%{http_code}"
     -X "$method"
-    -H "Authorization: Bearer ${ESSESSEFF_API_KEY}"
     -H "X-API-Key: ${ESSESSEFF_API_KEY}"
     -H "User-Agent: essesseff-onboarding-utility/1.0"
   )
@@ -380,12 +379,11 @@ check_app_exists() {
 
   # Debug: Show what we're sending
   if [ "$VERBOSE" = true ]; then
-    info "Sending Authorization header: Bearer ${ESSESSEFF_API_KEY:0:10}..."
+    info "Sending X-API-Key header: ${ESSESSEFF_API_KEY:0:10}..."
   fi
 
   local http_code
   http_code=$(curl -s -L -w "%{http_code}" -o "$temp_body" -X "GET" \
-    -H "Authorization: Bearer ${ESSESSEFF_API_KEY}" \
     -H "X-API-Key: ${ESSESSEFF_API_KEY}" \
     -H "User-Agent: essesseff-onboarding-utility/1.0" \
     "${ESSESSEFF_API_BASE_URL}${endpoint}")
@@ -531,56 +529,7 @@ create_app() {
   repos=$(echo "$response" | jq -r '.data.resultant_repos // {}')
   echo "$repos" | jq -r 'to_entries[] | "  - \(.key): \(.value)"' 2>/dev/null || true
   echo ""
-
-  # Poll for app creation completion
-  info "Waiting for app creation to complete..."
-  poll_app_creation "$ESSESSEFF_ACCOUNT_SLUG" "$GITHUB_ORG" "$APP_NAME"
-}
-
-# Poll for app creation completion
-poll_app_creation() {
-  local account_slug=$1
-  local org_login=$2
-  local app_name=$3
-
-  local max_attempts=30
-  local attempt=0
-  local poll_interval=10
-
-  while [ $attempt -lt $max_attempts ]; do
-    attempt=$((attempt + 1))
-    info "Polling app status (attempt $attempt/$max_attempts)..."
-
-    # Use direct curl to check status without exiting on 404
-    sleep 4  # Rate limiting
-    local endpoint="/accounts/${account_slug}/organizations/${org_login}/apps/${app_name}"
-    local response
-    response=$(curl -s -L -w "\n%{http_code}" -X "GET" \
-      -H "Authorization: Bearer ${ESSESSEFF_API_KEY}" \
-      -H "X-API-Key: ${ESSESSEFF_API_KEY}" \
-      -H "User-Agent: essesseff-onboarding-utility/1.0" \
-      "${ESSESSEFF_API_BASE_URL}${endpoint}")
-
-    local http_code
-    http_code=$(echo "$response" | tail -n1)
-    local body
-    body=$(echo "$response" | sed '$d')
-
-    if [ "$http_code" = "200" ]; then
-      echo -e "${GREEN}✓ App creation completed!${NC}"
-      return 0
-    elif [ "$http_code" != "404" ]; then
-      warning "Unexpected HTTP status while polling: $http_code"
-    fi
-
-    if [ $attempt -lt $max_attempts ]; then
-      info "App not ready yet, waiting ${poll_interval} seconds..."
-      sleep $poll_interval
-    fi
-  done
-
-  warning "App creation polling timed out after $max_attempts attempts"
-  warning "Please verify app creation status via essesseff.com UI"
+  echo "App creation completed. All repositories have been created and configured."
 }
 
 # Main function
@@ -616,7 +565,6 @@ setup_argocd() {
   sleep 4  # Rate limiting
   local response
   response=$(curl -s -L -w "\n%{http_code}" -X "GET" \
-    -H "Authorization: Bearer ${ESSESSEFF_API_KEY}" \
     -H "X-API-Key: ${ESSESSEFF_API_KEY}" \
     -H "User-Agent: essesseff-onboarding-utility/1.0" \
     "${ESSESSEFF_API_BASE_URL}/accounts/${ESSESSEFF_ACCOUNT_SLUG}/organizations/${GITHUB_ORG}/apps/${APP_NAME}/notifications-secret")
