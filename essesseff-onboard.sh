@@ -26,6 +26,61 @@ check_dependencies() {
 # Check dependencies at startup
 check_dependencies
 
+# Colors for output (defined early for use in trap)
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Capture start time (UTC)
+SCRIPT_START_TIME=$(date -u +%s)
+SCRIPT_START_TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+echo ""
+echo "================================================================================"
+echo "essesseff Onboarding Utility"
+echo "Started: $SCRIPT_START_TIMESTAMP"
+echo "================================================================================"
+echo ""
+
+# Function to display completion timestamp and elapsed time
+display_completion_info() {
+  local exit_code=$1
+  SCRIPT_END_TIME=$(date -u +%s)
+  SCRIPT_END_TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+  
+  # Calculate elapsed time
+  local elapsed_seconds=$((SCRIPT_END_TIME - SCRIPT_START_TIME))
+  local hours=$((elapsed_seconds / 3600))
+  local minutes=$(((elapsed_seconds % 3600) / 60))
+  local seconds=$((elapsed_seconds % 60))
+  
+  # Format elapsed time
+  local elapsed_formatted
+  if [ $hours -gt 0 ]; then
+    elapsed_formatted="${hours}h ${minutes}m ${seconds}s"
+  elif [ $minutes -gt 0 ]; then
+    elapsed_formatted="${minutes}m ${seconds}s"
+  else
+    elapsed_formatted="${seconds}s"
+  fi
+  
+  echo ""
+  echo "================================================================================"
+  if [ $exit_code -eq 0 ]; then
+    echo -e "${GREEN}✓ Completed successfully${NC}"
+  else
+    echo -e "${RED}✗ Completed with errors${NC}"
+  fi
+  echo "Started:  $SCRIPT_START_TIMESTAMP"
+  echo "Finished: $SCRIPT_END_TIMESTAMP"
+  echo "Elapsed:  $elapsed_formatted"
+  echo "================================================================================"
+  echo ""
+}
+
+# Set trap to display completion info on exit
+trap 'display_completion_info $?' EXIT
+
 # Default values
 CONFIG_FILE=".essesseff"
 ESSESSEFF_API_BASE_URL="${ESSESSEFF_API_BASE_URL:-https://essesseff.com/api/v1}"
@@ -34,12 +89,6 @@ LANGUAGE=""
 CREATE_APP=false
 SETUP_ARGOCD=""
 VERBOSE=false
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
 
 # Print error message
 error() {
@@ -703,3 +752,5 @@ EOF
 
 # Run main function
 main "$@"
+
+# Note: The trap will automatically display completion info on exit
