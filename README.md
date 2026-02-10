@@ -8,7 +8,7 @@ This diagram provides a representation of what the essesseff onboarding utility 
 
 *Note: GitHub and K8s Licensed and Hosted Separately. This diagram shows an example of three K8s-deployed apps following the build-once-deploy-many "essesseff app" model, each app with its own Source and Helm-config-env GitHub repos (and Argo CD GitHub repos (not shown)), and with deployments distributed across as few or as many K8s clusters as desired, both on an env-specific basis as well as on a one-or-many deployments per environment basis. The essesseff app templates easily support and provide standardized configuration and automation OOTB for all of the above.*
 
-## Features
+## Features of essesseff Onboarding Utility
 
 - **List Templates**: View all available templates (global and account-specific)
 - **Create Apps**: Automatically create essesseff apps with all 9 repositories
@@ -16,11 +16,7 @@ This diagram provides a representation of what the essesseff onboarding utility 
 - **Rate Limiting**: Automatically respects essesseff API rate limits
 - **Error Handling**: Comprehensive error handling with clear messages
 
-## Prerequisites
-
-Before using the essesseff onboarding utility, ensure the following prerequisites are met:
-
-### Required Prerequisites
+## Required Prerequisites for Running essesseff Onboarding Utility
 
 1. **GitHub Organization Setup**:
    - GitHub organization must already exist
@@ -39,18 +35,24 @@ Before using the essesseff onboarding utility, ensure the following prerequisite
    - Kubernetes cluster access must be available for each target environment
    - Proper permissions to create secrets, configmaps, and Argo CD applications
    - **Important**: `kubectl` configuration is a prerequisite that must be completed before running the utility
+  
+4. **(if not done already) Deploy/Configure Argo CD on each of the Environment-specific Kubernetes Cluster(s) by running the Argo CD cluster setup script**:
+```bash
+   chmod 744 setup-argocd-cluster.sh
+   ./setup-argocd-cluster.sh
+   ```
 
-4. **essesseff API Key**:
+5. **essesseff API Key**:
    - Valid essesseff API key with appropriate permissions
    - API key must belong to the account specified in `ESSESSEFF_ACCOUNT_SLUG`
 
-5. **GitHub Machine User** (required for `--setup-argocd`):
+6. **GitHub Machine User** (required for `--setup-argocd`):
    - GitHub machine user account created
    - Personal Access Token (PAT) with `repo` and `read:packages` scopes
    - Machine user added to the GitHub organization
    - See: [GitHub Argo CD Machine User Setup Guide](https://www.essesseff.com/docs/deployment/github-argocd-machine-user-setup#step-0:-tldr---quick-setup-for-essesseff-onboarding-utility)
 
-## Installation
+## Installation of essesseff Onboarding Utility
 
 1. Clone or download the essesseff onboarding utility repository
 2. Make the script executable:
@@ -63,7 +65,7 @@ Before using the essesseff onboarding utility, ensure the following prerequisite
    ```
 4. Edit `.essesseff` and fill in your configuration values
 
-## Configuration
+## Configuration of essesseff Onboarding Utility
 
 The utility reads configuration from a `.essesseff` file (by default). Create this file by copying `.essesseff.example` and filling in your values.
 
