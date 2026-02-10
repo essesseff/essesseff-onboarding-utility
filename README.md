@@ -2,6 +2,16 @@
 
 Automates the process of creating a new essesseff app and configuring Argo CD deployments using the essesseff Public API.
 
+*Please Note:*
+
+*essesseff™ is an independent DevOps ALM PaaS-as-SaaS and is in no way affiliated with, endorsed by, sponsored by, or otherwise connected to GitHub® or The Linux Foundation®.* 
+
+*essesseff™ and the essesseff™ logo design are trademarks of essesseff LLC.*
+
+*GITHUB®, the GITHUB® logo design and the INVERTOCAT logo design are trademarks of GitHub, Inc., registered in the United States and other countries.*
+
+*Argo®, Helm®, Kubernetes® and K8s® are registered trademarks of The Linux Foundation.*
+
 This diagram provides a representation of what the essesseff onboarding utility is able to setup on a per app basis typically in under 5 minutes per app:
 
 ![Golden Path App Template Diagram](https://www.essesseff.com/images/architecture/essesseff-app-template-minus-subscription-light-mode.svg)
