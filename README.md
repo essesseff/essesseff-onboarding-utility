@@ -1,6 +1,6 @@
 # essesseff Onboarding Utility
 
-Automates the process of creating a new essesseff app and configuring Argo CD deployments using the essesseff Public API.
+Using the essesseff Public API and (if running with `--setup-argocd`) shell scripts that execute kubectl, the essesseff Onboarding Utility automates the process of creating a new essesseff app in essesseff and GitHub, as well as of configuring Argo CD deployments on each of your env-specific K8s cluster(s).
 
 *Please Note:*
 
