@@ -54,9 +54,9 @@ This diagram provides a representation of what the essesseff onboarding utility 
    ./setup-argocd-cluster.sh
    ```
 
-5. **essesseff API Key**:
-   - Valid essesseff API key with appropriate permissions
-   - API key must belong to the account specified in `ESSESSEFF_ACCOUNT_SLUG`
+5. **essesseff public API Key**:
+   - Valid essesseff public API key (issued from essesseff Team settings page i.e. https://www.essesseff.com/home/ESSESSEFF_ACCOUNT_SLUG/settings)
+   - API key must belong to the essesseff team account specified in `ESSESSEFF_ACCOUNT_SLUG` in the essesseff onboarding utility .essesseff file
 
 6. **GitHub Machine User** (required for `--setup-argocd`):
    - GitHub machine user account created
