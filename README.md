@@ -2,6 +2,12 @@
 
 Automates the process of creating a new essesseff app and configuring Argo CD deployments using the essesseff Public API.
 
+This diagram provides a representation of what the essesseff onboarding utility is able to setup on a per app basis typically in under 5 minutes per app:
+
+![Golden Path App Template Diagram](https://www.essesseff.com/images/architecture/essesseff-app-template-minus-subscription-light-mode.svg)
+
+*Note: GitHub and K8s Licensed and Hosted Separately. This diagram shows an example of three K8s-deployed apps following the build-once-deploy-many "essesseff app" model, each app with its own Source and Helm-config-env GitHub repos (and Argo CD GitHub repos (not shown)), and with deployments distributed across as few or as many K8s clusters as desired, both on an env-specific basis as well as on a one-or-many deployments per environment basis. The essesseff app templates easily support and provide standardized configuration and automation OOTB for all of the above.*
+
 ## Features
 
 - **List Templates**: View all available templates (global and account-specific)
@@ -91,6 +97,8 @@ App names must conform to GitHub repository naming standards:
 - Cannot start or end with a dash
 - Examples: `my-app`, `hello-world`, `app123` ✅
 - Invalid: `My-App`, `my_app`, `-my-app`, `my-app-` ❌
+
+*Please also note that java application names should not include hyphens.*
 
 ## Usage
 
