@@ -37,6 +37,8 @@ This diagram provides a representation of what the essesseff onboarding utility 
    - **Important**: `kubectl` configuration is a prerequisite that must be completed before running the utility
   
 4. **(if not done already) Deploy/Configure Argo CD on each of the Environment-specific Kubernetes Cluster(s) by running the Argo CD cluster setup script**:
+
+   From shell terminal(s) with kubectl configured for each env-specific K8s cluster:
 ```bash
    chmod 744 setup-argocd-cluster.sh
    ./setup-argocd-cluster.sh
