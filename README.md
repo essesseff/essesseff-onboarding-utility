@@ -56,7 +56,7 @@ This diagram provides a representation of what the essesseff onboarding utility 
 
 ## Installation of essesseff Onboarding Utility
 
-1. Clone or download the essesseff onboarding utility repository
+1. Clone or download the essesseff onboarding utility repository, and if using --setup-argocd option, also be sure to execute with kubectl configured for the env-specific K8s cluster(s). 
 2. Make the script executable:
    ```bash
    chmod +x essesseff-onboard.sh
