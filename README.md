@@ -99,7 +99,7 @@ The utility reads configuration from a `.essesseff` file (by default). Create th
 
 **For `--setup-argocd`**:
 - `ARGOCD_MACHINE_USER` - Argo CD machine user username
-- `GITHUB_TOKEN` - GitHub Personal Access Token for the machine user
+- `GITHUB_TOKEN` - GitHub Personal Access Token for the machine user - ***not to be confused with*** `GITHUB_ORG_ADMIN_PAT` 
 - `ARGOCD_MACHINE_EMAIL` - Email address for the machine user
 
 ### Optional Configuration Variables
