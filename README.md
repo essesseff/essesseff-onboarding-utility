@@ -26,8 +26,17 @@ Before using the essesseff onboarding utility, ensure the following prerequisite
 
 1. **GitHub Organization Setup**:
    - GitHub organization must already exist
-   - essesseff GitHub App must already be installed in the GitHub organization
-   - Organization must be linked to the essesseff account (via essesseff UI)
+   
+   *For essesseff subscribers*
+     
+   - Follow the steps in the essesseff UX for setting up your GitHub organization, including installation of the essesseff GitHub App to your org
+  
+   *For non-subscribers to essesseff*
+   
+   - Create or otherwise have ready a GitHub organization, along with a GitHub org admin account with PAT (required for `--create-app` when using `--non-essesseff-subscriber-mode`) with the following permissions:
+      - **Classic PAT**: grant **`repo`** (create repos, push code) and **`workflow`** (create/update `.github/workflows` files; required because the templates include GitHub Actions workflows).
+      - **Fine-grained PAT**: grant **Contents: Read and write**, **Metadata: Read**, and **Workflows: Read and write** for the organization (or all repositories); the token user must have permission in the org to create repositories.
+      - The utility uses the PAT to call `POST /orgs/{org}/repos` and to push via HTTPS; do not confuse with `GITHUB_TOKEN` (Argo CD machine user).
 
 2. **System Dependencies**:
    - `bash` (version 4.0 or higher)
@@ -35,26 +44,27 @@ Before using the essesseff onboarding utility, ensure the following prerequisite
    - `git` (for repository cloning)
    - `jq` (for JSON parsing)
    - `kubectl` (required if using `--setup-argocd`)
+  
+3. **Kubernetes (K8s) and Argo CD**:
+   - BYO K8s (even a single VM k3s K8s will suffice)
+   - Install Argo CD on your K8s cluster(s)
+      - [setup-argocd-cluster.sh](https://github.com/essesseff/essesseff-onboarding-utility/blob/main/setup-argocd-cluster.sh) in this repo provides easy Argo CD setup
 
-3. **kubectl Configuration** (required for `--setup-argocd`):
-   - `kubectl` must be installed and configured for each target environment
+4. **kubectl Configuration** (required for `--setup-argocd`):
+   - `kubectl` must be installed and configured for each K8s target environment
    - Kubernetes cluster access must be available for each target environment
    - Proper permissions to create secrets, configmaps, and Argo CD applications
    - **Important**: `kubectl` configuration is a prerequisite that must be completed before running the utility
 
-4. **essesseff API Key** (required for subscriber mode; not used with `--non-essesseff-subscriber-mode`):
-   - Valid essesseff API key with appropriate permissions
-   - API key must belong to the account specified in `ESSESSEFF_ACCOUNT_SLUG`
-
-5. **GitHub Org Admin PAT** (required only for `--create-app` when using `--non-essesseff-subscriber-mode`):
-   - **Classic PAT**: grant **`repo`** (create repos, push code) and **`workflow`** (create/update `.github/workflows` files; required because the templates include GitHub Actions workflows).
-   - **Fine-grained PAT**: grant **Contents: Read and write**, **Metadata: Read**, and **Workflows: Read and write** for the organization (or all repositories); the token user must have permission in the org to create repositories.
-   - The utility uses the PAT to call `POST /orgs/{org}/repos` and to push via HTTPS; do not confuse with `GITHUB_TOKEN` (Argo CD machine user).
+5. **essesseff API Key** (required for essesseff subscribers; not used with `--non-essesseff-subscriber-mode`):
+   - Valid essesseff API key, available from essesseff team settings page
+   - API key must belong to the account specified in `ESSESSEFF_ACCOUNT_SLUG` in .essesseff file
 
 6. **GitHub Machine User** (required for `--setup-argocd`):
-   - GitHub machine user account created
+   - ***Not to be confused with GitHub org admin PAT if running with `--non-essesseff-subscriber-mode`***
+   - GitHub machine user account created for Argo CD to be able to pull container image(s) from GHCR and env-specific config from git repository(ies)
    - Personal Access Token (PAT) with `repo` and `read:packages` scopes
-   - Machine user added to the GitHub organization
+   - Machine user account added to the GitHub organization
    - See: [GitHub Argo CD Machine User Setup Guide](https://www.essesseff.com/docs/deployment/github-argocd-machine-user-setup#step-0:-tldr---quick-setup-for-essesseff-onboarding-utility)
 
 ## Installation
@@ -76,18 +86,19 @@ The utility reads configuration from a `.essesseff` file (by default). Create th
 
 ### Required Configuration Variables
 
-**For all operations**:
+**Required Input for essesseff Subscribers Only**:
 - `ESSESSEFF_API_KEY` - Your essesseff API key
 - `ESSESSEFF_ACCOUNT_SLUG` - Your essesseff team account slug
-- `GITHUB_ORG` - GitHub organization login
-- `APP_NAME` - essesseff app name (must conform to GitHub repository naming standards)
 
-**For `--create-app`** (subscriber mode):
+**Required Input for All Operations**:
+- `GITHUB_ORG` - target GitHub organization login
+- `APP_NAME` - target essesseff app name (must conform to GitHub repository naming standards)
+
+**For `--create-app`**:
 - `TEMPLATE_NAME` - Name of the template to use (e.g., "essesseff-hello-world-go-template")
 - `TEMPLATE_IS_GLOBAL` - Set to `true` for global templates, `false` for account-specific templates
 
-**For `--create-app` with `--non-essesseff-subscriber-mode`**:
-- `TEMPLATE_NAME` - Template name = GitHub org of the template (e.g., "essesseff-hello-world-go-template"). Use `--list-templates --non-essesseff-subscriber-mode` to see available names.
+**Additionally, for `--create-app` with `--non-essesseff-subscriber-mode`**:
 - `GITHUB_ORG_ADMIN_PAT` - GitHub Personal Access Token with org repo create/push and **workflow** permissions (used to create the 9 repos and push content, including `.github/workflows`; classic PAT needs `repo` + `workflow` scopes)
 
 **For `--setup-argocd`**:
@@ -96,11 +107,12 @@ The utility reads configuration from a `.essesseff` file (by default). Create th
 - `ARGOCD_MACHINE_EMAIL` - Email address for the machine user
 
 ### Optional Configuration Variables
-
-- `ESSESSEFF_API_BASE_URL` - essesseff API base URL (defaults to `https://essesseff.com/api/v1`)
 - `APP_DESCRIPTION` - App description (optional for `--create-app`)
 - `REPOSITORY_VISIBILITY` - Repository visibility: `private` or `public` (default: `private`)
+
+### Additional, Optional Configuration Variables for essesseff Subscribers Only
 - `ARGOCD_INSTANCE_URL` - (optional, for `--setup-argocd` only) Base URL of your Argo CD instance (e.g. `https://argocd.example.com`). When set, the utility registers each environment's Argo CD application URL with essesseff (e.g. `https://argocd.example.com/applications/argocd/my-app-dev`), so the app's deployment cards and settings can link directly to the Argo CD application.
+- `ESSESSEFF_API_BASE_URL` - (for essesseff subscribers only) essesseff API base URL (defaults to `https://essesseff.com/api/v1`) 
 
 ### App Name Requirements
 
@@ -111,6 +123,12 @@ App names must conform to GitHub repository naming standards:
 - Invalid: `My-App`, `my_app`, `-my-app`, `my-app-` ❌
 
 ## Usage
+
+### Non-essesseff-subscriber mode (no essesseff subscription)
+
+Be sure to use this command-line option:
+
+`--non-essesseff-subscriber-mode`
 
 ### List Available Templates
 
@@ -155,34 +173,6 @@ Set up Argo CD for specific environments (app already exists):
   --config-file .essesseff
 ```
 
-### Non-essesseff-subscriber mode (no essesseff subscription)
-
-List bundled templates (no API key required):
-
-```bash
-./essesseff-onboard.sh --list-templates --non-essesseff-subscriber-mode --config-file .essesseff
-```
-
-Create app by cloning templates, replacing strings, and pushing to your GitHub org (requires `GITHUB_ORG_ADMIN_PAT` in `.essesseff`). Repos are cloned into the **current working directory** and left there after push so you can inspect content and debug string replacement:
-
-```bash
-./essesseff-onboard.sh \
-  --create-app \
-  --non-essesseff-subscriber-mode \
-  --config-file .essesseff
-```
-
-Then optionally set up Argo CD (same as subscriber mode; requires Argo CD machine user credentials):
-
-```bash
-./essesseff-onboard.sh \
-  --non-essesseff-subscriber-mode \
-  --setup-argocd dev,qa,staging,prod \
-  --config-file .essesseff
-```
-
-In non-subscriber mode the utility does not call the essesseff API. Argo CD setup does not provide notifications-secret.yaml; the argocd-env setup-argocd.sh scripts detect its absence and skip Argo CD Notifications setup (they only enable notifications when a real essesseff notifications-secret is present).
-
 ### Verbose Output
 
 Enable verbose output for debugging:
@@ -213,11 +203,11 @@ Enable verbose output for debugging:
 
 ### Argo CD Setup Process
 
-1. Downloads `notifications-secret.yaml` once (contains secrets for all environments)
+1. (For essesseff subscribers only) Downloads `notifications-secret.yaml` once (contains secrets for all environments)
 2. For each specified environment:
    - Clones the Argo CD environment repository (`{app-name}-argocd-{env}`)
    - Creates `.env` file with only necessary variables
-   - Copies `notifications-secret.yaml` to the repository
+   - (For essesseff subscribers only) Copies `notifications-secret.yaml` to the repository
    - Executes `setup-argocd.sh` script
 
 **Note**: The utility assumes `kubectl` is properly configured for each target environment. This is a prerequisite that must be completed before running the utility.
@@ -233,7 +223,7 @@ When setting up Argo CD, the utility creates `.env` files in each Argo CD reposi
 - `APP_NAME`
 - `ENVIRONMENT` (set per-environment: dev, qa, staging, or prod)
 
-API-related variables (`ESSESSEFF_API_KEY`, `ESSESSEFF_API_BASE_URL`, `ESSESSEFF_ACCOUNT_SLUG`) and app creation variables (`APP_DESCRIPTION`, `REPOSITORY_VISIBILITY`, `TEMPLATE_NAME`, `TEMPLATE_IS_GLOBAL`) are NOT copied to the `.env` files as they are not needed by `setup-argocd.sh`.
+(For essesseff subscribers only) API-related variables (`ESSESSEFF_API_KEY`, `ESSESSEFF_API_BASE_URL`, `ESSESSEFF_ACCOUNT_SLUG`) and app creation variables (`APP_DESCRIPTION`, `REPOSITORY_VISIBILITY`, `TEMPLATE_NAME`, `TEMPLATE_IS_GLOBAL`) are NOT copied to the `.env` files as they are not needed by `setup-argocd.sh`.
 
 ## Rate Limiting
 
@@ -251,8 +241,8 @@ The utility automatically respects the essesseff API rate limit of 3 requests pe
 
 After running the onboarding utility, validate the setup:
 
-1. **essesseff.com UI**: Verify all 9 repositories exist, check repository visibility, confirm webhook configuration
-2. **Argo CD UI**: Verify Argo CD applications are created, check application sync status, validate repository connections, confirm notification webhooks are configured
+1. **essesseff.com UI**: (For essesseff subscribers only) Verify all 9 repositories exist, check repository visibility, confirm webhook configuration
+2. **Argo CD UI**: Verify Argo CD applications (i.e. deployment pipelines) are created, check application sync status, validate repository connections, confirm notification webhooks are configured
 
 ## Troubleshooting
 
