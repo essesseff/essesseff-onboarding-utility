@@ -22,7 +22,6 @@ Before using the essesseff onboarding utility, ensure the following prerequisite
 ### Required Prerequisites
 
 1. **GitHub Organization Setup**:
-   - GitHub organization must already exist
    
    *For essesseff subscribers*
      
