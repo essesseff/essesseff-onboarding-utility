@@ -12,10 +12,7 @@ Automates the process of cloning template repos, performing string replacement, 
 
 - **List Templates**: View all available templates (global and account-specific, or bundled when using non-subscriber mode)
 - **Create Apps**: Automatically create essesseff apps with all 9 repositories (via API for subscribers, or clone/replace/push for non-subscribers)
-- **Non-essesseff-subscriber mode** (`--non-essesseff-subscriber-mode`): Create apps without an essesseff subscription — clone global templates, perform string replacement (org and app name), create and push repos to your GitHub org using a GitHub org admin PAT
-- **Fault tolerance (non-subscriber mode)**: Automatic retries for transient failures: template clone (3 attempts, 10s delay), create-repo API on rate limit or server error (3 attempts, 15s delay), and push (3 attempts, 10s delay)
 - **Setup Argo CD**: Configure Argo CD applications for dev, qa, staging, and/or prod environments
-- **Rate Limiting**: Automatically respects essesseff API rate limits (subscriber mode)
 - **Error Handling**: Comprehensive error handling with clear messages
 
 ## Prerequisites
