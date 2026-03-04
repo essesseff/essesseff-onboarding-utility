@@ -1,0 +1,13 @@
+# essesseff onboarding utility configuration (contains sensitive API keys and tokens)
+.essesseff
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
