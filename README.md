@@ -1,6 +1,12 @@
 # essesseff Onboarding Utility
 
-Automates the process of creating a new essesseff app and configuring Argo CD deployments using the essesseff Public API.
+### For essesseff subscribers
+
+Automates the process of creating a new essesseff app in essesseff and GitHub, as well as configuring Argo CD deployments using the essesseff Public API and automation shell scripts provided in the template repos -- which process typically takes ***less than 5 minutes*** to complete.
+
+### For non-subscribers to essesseff
+
+Automates the process of cloning template repos, performing string replacement, creating new GitHub repos in desired org and with specified app name, as well as configuring Argo CD deployments using the GitHub API and automation shell scripts provided in the template repos -- which process typically takes ***less than 1 minute*** to complete.
 
 ## Features
 
