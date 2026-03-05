@@ -141,7 +141,7 @@ essesseff Onboarding Utility - Automates essesseff app creation and Argo CD setu
 
 OPTIONS:
   --list-templates               List all available templates (global and account-specific, or bundled if --non-essesseff-subscriber-mode)
-  --language LANGUAGE            Filter templates by language (go, python, node, java)
+  --language LANGUAGE            Filter templates by language (go, python, node, java, php)
   --create-app                   Create a new essesseff app (via API or clone/replace/push if --non-essesseff-subscriber-mode)
   --setup-argocd ENVS            Comma-separated list of environments (dev,qa,staging,prod)
   --non-essesseff-subscriber-mode Run without essesseff API: clone templates, replace strings, create/push repos to your GitHub org
