@@ -141,7 +141,7 @@ essesseff Onboarding Utility - Automates essesseff app creation and Argo CD setu
 
 OPTIONS:
   --list-templates               List all available templates (global and account-specific, or bundled if --non-essesseff-subscriber-mode)
-  --language LANGUAGE            Filter templates by language (go, python, node, java, php)
+  --language LANGUAGE            Filter templates by language (go, python, node, java)
   --create-app                   Create a new essesseff app (via API or clone/replace/push if --non-essesseff-subscriber-mode)
   --setup-argocd ENVS            Comma-separated list of environments (dev,qa,staging,prod)
   --non-essesseff-subscriber-mode Run without essesseff API: clone templates, replace strings, create/push repos to your GitHub org
@@ -326,6 +326,11 @@ read_config() {
   # Set defaults
   REPOSITORY_VISIBILITY="${REPOSITORY_VISIBILITY:-private}"
   APP_DESCRIPTION="${APP_DESCRIPTION:-}"
+
+  # Normalize GitHub org: trim whitespace (API matches organization_login case-insensitively)
+  if [ -n "${GITHUB_ORG:-}" ]; then
+    GITHUB_ORG=$(echo "$GITHUB_ORG" | xargs)
+  fi
 
   info "Configuration loaded successfully"
 }
@@ -938,20 +943,35 @@ setup_argocd() {
           local argocd_app_url="${ARGOCD_INSTANCE_URL}/applications/argocd/${APP_NAME}-${env}"
           info "Setting Argo CD application URL for $env_upper: $argocd_app_url"
           sleep 4
-          local set_url_response
-          set_url_response=$(curl -s -L -w "\n%{http_code}" -X "POST" \
-            -H "X-API-Key: ${ESSESSEFF_API_KEY}" \
-            -H "User-Agent: essesseff-onboarding-utility/1.0" \
-            -H "Content-Type: application/json" \
-            -d "{\"url\":\"${argocd_app_url}\"}" \
-            "${ESSESSEFF_API_BASE_URL}/accounts/${ESSESSEFF_ACCOUNT_SLUG}/organizations/${GITHUB_ORG}/apps/${APP_NAME}/environments/${env_upper}/set-argocd-application-url")
           local set_url_http
-          set_url_http=$(echo "$set_url_response" | tail -n1)
-          if [ "$set_url_http" -ge 400 ]; then
-            warning "Failed to set Argo CD application URL for $env_upper: HTTP $set_url_http"
-          else
-            info "Argo CD application URL set for $env_upper"
-          fi
+          local max_attempts=3
+          local attempt=1
+          while [ "$attempt" -le "$max_attempts" ]; do
+            local set_url_response
+            set_url_response=$(curl -s -L -w "\n%{http_code}" -X "POST" \
+              -H "X-API-Key: ${ESSESSEFF_API_KEY}" \
+              -H "User-Agent: essesseff-onboarding-utility/1.0" \
+              -H "Content-Type: application/json" \
+              -d "{\"url\":\"${argocd_app_url}\"}" \
+              "${ESSESSEFF_API_BASE_URL}/accounts/${ESSESSEFF_ACCOUNT_SLUG}/organizations/${GITHUB_ORG}/apps/${APP_NAME}/environments/${env_upper}/set-argocd-application-url")
+            set_url_http=$(echo "$set_url_response" | tail -n1)
+            if [ "$set_url_http" -eq 429 ]; then
+              if [ "$attempt" -lt "$max_attempts" ]; then
+                warning "Rate limit exceeded, waiting 10 seconds before retry..."
+                sleep 10
+                attempt=$((attempt + 1))
+              else
+                warning "Failed to set Argo CD application URL for $env_upper: HTTP 429 (rate limit) after ${max_attempts} attempts"
+                break
+              fi
+            elif [ "$set_url_http" -ge 400 ]; then
+              warning "Failed to set Argo CD application URL for $env_upper: HTTP $set_url_http"
+              break
+            else
+              info "Argo CD application URL set for $env_upper"
+              break
+            fi
+          done
           ;;
         *)
           : ;; # skip invalid env (already validated earlier)
@@ -992,14 +1012,20 @@ setup_argocd_environment() {
   esac
 
   local repo_name="${APP_NAME}-argocd-${env}"
-  local repo_url="git@github.com:${GITHUB_ORG}/${repo_name}.git"
+  # Use GITHUB_TOKEN (HTTPS) when set so clone works even if the account running the script lacks SSH access
+  local repo_url
+  if [ -n "${GITHUB_TOKEN:-}" ]; then
+    repo_url="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_ORG}/${repo_name}.git"
+  else
+    repo_url="git@github.com:${GITHUB_ORG}/${repo_name}.git"
+  fi
 
   # Clone repository if it doesn't exist locally
   if [ ! -d "$repo_name" ]; then
     info "Cloning repository: $repo_name"
     if ! git clone "$repo_url" "$repo_name" 2>/dev/null; then
       error "Failed to clone repository: $repo_name"
-      error "Please ensure the repository exists and you have access to it"
+      error "Please ensure the repository exists and GITHUB_TOKEN (or SSH) has access to it"
       return 1
     fi
   else
