@@ -24,6 +24,7 @@ APP_NAME="my-app"
 #   TEMPLATE_NAME="essesseff-hello-world-flask-template"      # Python Flask
 #   TEMPLATE_NAME="essesseff-hello-world-go-template"         # Go
 #   TEMPLATE_NAME="essesseff-hello-world-nodejs-template"     # Node.js
+#   TEMPLATE_NAME="essesseff-hello-world-php-template"        # PHP (Slim)
 #   TEMPLATE_NAME="essesseff-helloworld-springboot-templat"   # Java Spring Boot
 TEMPLATE_NAME="essesseff-hello-world-go-template"
 TEMPLATE_IS_GLOBAL=true
