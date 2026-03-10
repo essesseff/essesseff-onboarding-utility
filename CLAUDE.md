@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+see also: [essesseff-onboarding-utility README.md](https://github.com/essesseff/essesseff-onboarding-utility/blob/main/README.md)
+
 ## Project Overview
 
 This repo contains the **essesseff Onboarding Utility** — a bash script that automates creating a new essesseff app (9 GitHub repositories) and configuring Argo CD deployments for dev/qa/staging/prod environments.
