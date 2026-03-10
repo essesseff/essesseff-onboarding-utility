@@ -327,9 +327,12 @@ read_config() {
   REPOSITORY_VISIBILITY="${REPOSITORY_VISIBILITY:-private}"
   APP_DESCRIPTION="${APP_DESCRIPTION:-}"
 
-  # Normalize GitHub org: trim whitespace (API matches organization_login case-insensitively)
+  # Normalize GitHub org and app name: trim and force lowercase for string replacement and repo naming
   if [ -n "${GITHUB_ORG:-}" ]; then
-    GITHUB_ORG=$(echo "$GITHUB_ORG" | xargs)
+    GITHUB_ORG=$(echo "$GITHUB_ORG" | xargs | tr '[:upper:]' '[:lower:]')
+  fi
+  if [ -n "${APP_NAME:-}" ]; then
+    APP_NAME=$(echo "$APP_NAME" | xargs | tr '[:upper:]' '[:lower:]')
   fi
 
   info "Configuration loaded successfully"
