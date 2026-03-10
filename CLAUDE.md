@@ -37,7 +37,7 @@ The script reads config from `.essesseff` by default (overridable via `--config-
 - `TEMPLATE_IS_GLOBAL` — `true` or `false`
 
 **Non-subscriber mode only (for `--create-app`):**
-- `GITHUB_ORG_ADMIN_PAT` — GitHub PAT with `repo` + `workflow` scopes (classic) or Contents/Metadata/Workflows read-write (fine-grained); used to create repos and push content including `.github/workflows`
+- `GITHUB_ORG_ADMIN_PAT` — GitHub PAT with `repo` + `workflow` scopes (classic) or Contents/Metadata/Workflows read-write (fine-grained); used to create repos and push content including `.github/workflows` (**not** the same as `GITHUB_TOKEN`)
 
 **For `--setup-argocd`:**
 - `ARGOCD_MACHINE_USER` — Argo CD machine user username
