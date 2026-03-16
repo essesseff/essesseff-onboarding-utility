@@ -37,7 +37,7 @@ Before using the essesseff onboarding utility, ensure the following prerequisite
 2. **System Dependencies**:
    - `bash` (version 4.0 or higher)
    - `curl` (for API calls)
-   - `git` (for repository cloning)
+   - `git` (for repository cloning; git profile with commit/push access to argocd-env repos also required for `--setup-argocd`)
    - `jq` (for JSON parsing)
    - `kubectl` (required if using `--setup-argocd`)
   
@@ -70,15 +70,19 @@ Before using the essesseff onboarding utility, ensure the following prerequisite
    ```bash
    chmod +x essesseff-onboard.sh
    ```
-3. Copy the example configuration file:
+3. If using the onboarding wizard, make the script executable:
+   ```bash
+   chmod +x essesseff-onboard-wizard.sh
+   ```
+4. Copy the example configuration file:
    ```bash
    cp .essesseff.example .essesseff
    ```
-4. Edit `.essesseff` and fill in your configuration values
+5. Edit `.essesseff` and fill in your configuration values, or use the onboarding wizard `essesseff-onboard-wizard.sh` to accomplish the same.
 
 ## Configuration
 
-The utility reads configuration from a `.essesseff` file (by default). Create this file by copying `.essesseff.example` and filling in your values.
+The utility reads configuration from a `.essesseff` file (by default). Create this file by copying `.essesseff.example` and filling in your values, or run the onboarding wizard `essesseff-onboard-wizard.sh` to accomplish the same.
 
 ### Required Configuration Variables
 
@@ -278,6 +282,14 @@ If some occurrences in the template repo use a different spelling or case (e.g. 
 - Ensure the app was created successfully
 - Verify you have access to the repository
 - Check that the repository exists in the GitHub organization
+
+### Repository Commit or Push Fails (target app repos, e.g. setup-argocd)
+
+**Error**: `Failed to commit or push to repository: my-app-argocd-dev`
+
+**Solution**:
+- Ensure the git user name and email is configured
+- Ensure the git profile has push access to repo(s) in GitHub
 
 ### API Rate Limit
 
