@@ -249,7 +249,7 @@ parse_args() {
 read_config() {
   if [ ! -f "$CONFIG_FILE" ]; then
     error "Configuration file not found: $CONFIG_FILE"
-    error "Please create a .essesseff file or specify a different file with --config-file"
+    error "Copy from .essesseff.example (or the repository example), fill in required values, and save as $CONFIG_FILE (or specify a different file with --config-file)."
     exit 1
   fi
 
@@ -338,6 +338,38 @@ read_config() {
   info "Configuration loaded successfully"
 }
 
+# Check if git user.name and user.email are set (repo or global). Return 0 if both set, 1 otherwise.
+check_git_profile() {
+  local name
+  local email
+  name=$(git config user.name 2>/dev/null || true)
+  email=$(git config user.email 2>/dev/null || true)
+  if [ -z "$name" ] || [ -z "$email" ]; then
+    return 1
+  fi
+  return 0
+}
+
+# Pre-flight checks based on command-line options. Emit warnings to stderr where requirements are not met.
+run_preflight_checks() {
+  local needs_git_profile=false
+
+  if [ -n "$SETUP_ARGOCD" ]; then
+    needs_git_profile=true
+  fi
+  if [ "$CREATE_APP" = true ] && [ "$NON_ESSESSEFF_SUBSCRIBER_MODE" = true ]; then
+    needs_git_profile=true
+  fi
+
+  if [ "$needs_git_profile" = true ]; then
+    if ! check_git_profile; then
+      warning "A git profile (user.name and user.email) is required for the selected options."
+      warning "setup-argocd.sh must run 'git commit' and 'git push'; the executor needs a git identity."
+      warning "Set them with: git config [--global] user.name 'Your Name' and git config [--global] user.email 'you@example.com'"
+    fi
+  fi
+}
+
 # Make API request with rate limiting and error handling
 api_request() {
   local method=$1
@@ -384,7 +416,13 @@ api_request() {
 
   if [ "$http_code" -ge 400 ]; then
     error "API request failed: HTTP $http_code"
-    echo "$body" >&2
+    case "$http_code" in
+      401) error "Check your API key (X-API-Key)." ;;
+      403) error "Check your API key and account slug; you may not have access to this resource." ;;
+      404) error "Resource not found. Check account slug, organization, and app name." ;;
+      429) error "Rate limit exceeded. Wait and retry." ;;
+      *)   [ -n "$body" ] && echo "$body" | head -20 >&2 ;;
+    esac
     exit 1
   fi
 
@@ -558,7 +596,7 @@ fetch_template_details() {
 
 # Create essesseff app
 create_app() {
-  info "Creating essesseff app '$APP_NAME'..."
+  echo "==> Creating app '${APP_NAME}' in org '${GITHUB_ORG}' using template '${TEMPLATE_NAME}'..."
 
   # Validate app name
   if ! validate_app_name "$APP_NAME"; then
@@ -639,25 +677,29 @@ create_app() {
   local success
   success=$(echo "$response" | jq -r '.success // false')
   if [ "$success" != "true" ]; then
-    error "Failed to create app"
-    echo "$response" >&2
+    error "App creation failed: the API returned success=false or an error."
+    local err_msg
+    err_msg=$(echo "$response" | jq -r '.message // .error // "Check your API key and account slug."' 2>/dev/null || echo "Check your API key and account slug.")
+    echo "$err_msg" >&2
     exit 1
   fi
 
   echo ""
-  echo -e "${GREEN}✓ App '$APP_NAME' created successfully!${NC}"
-  echo ""
-  echo "Repository names:"
+  echo -e "${GREEN}✓ App '$APP_NAME' created successfully.${NC}"
+  echo "Repositories:"
   local repos
   repos=$(echo "$response" | jq -r '.data.resultant_repos // {}')
-  echo "$repos" | jq -r 'to_entries[] | "  - \(.key): \(.value)"' 2>/dev/null || true
+  if echo "$repos" | jq -e 'length > 0' &>/dev/null; then
+    echo "$repos" | jq -r 'to_entries[] | "  - \(.key): \(.value)"' 2>/dev/null || true
+  else
+    warning "Could not list repositories from response. Check the essesseff UI and GitHub org."
+  fi
   echo ""
-  echo "App creation completed. All repositories have been created and configured."
 }
 
 # Create app in non-essesseff-subscriber mode: clone templates, replace strings, create repos, push
 create_app_non_subscriber() {
-  info "Creating app '$APP_NAME' in non-essesseff-subscriber mode (clone, replace, push)..."
+  echo "==> Creating app '${APP_NAME}' in org '${GITHUB_ORG}' using template '${TEMPLATE_NAME}' (non-subscriber mode)..."
 
   if ! validate_app_name "$APP_NAME"; then
     exit 1
@@ -866,6 +908,7 @@ apply_replacements_and_rename() {
 main() {
   parse_args "$@"
   read_config
+  run_preflight_checks
 
   if [ "$LIST_TEMPLATES" = true ]; then
     if [ "$NON_ESSESSEFF_SUBSCRIBER_MODE" = true ]; then
@@ -893,7 +936,7 @@ main() {
 setup_argocd() {
   local environments=$1
 
-  info "Setting up Argo CD for environments: $environments"
+  echo "==> Setting up Argo CD for environments: $environments"
 
   # Download notifications secret (subscriber only). In non-subscriber mode we do not provide one;
   # setup-argocd.sh detects missing notifications-secret.yaml and skips Argo CD Notifications setup.
@@ -931,7 +974,9 @@ setup_argocd() {
   # Process each environment
   for env in "${ENV_ARRAY[@]}"; do
     env=$(echo "$env" | xargs)  # Trim whitespace
-    setup_argocd_environment "$env" "$notifications_secret_file"
+    if ! setup_argocd_environment "$env" "$notifications_secret_file"; then
+      echo -e "${RED}==> Argo CD setup failed for '$env' (see above).${NC}" >&2
+    fi
   done
 
   # If ARGOCD_INSTANCE_URL is set, register each environment's Argo CD application URL with essesseff via the API (subscriber only)
@@ -1000,9 +1045,10 @@ setup_argocd() {
 setup_argocd_environment() {
   local env=$1
   local notifications_secret_file=$2
+  local repo_name="${APP_NAME}-argocd-${env}"
 
   echo ""
-  echo "Setting up Argo CD for environment: $env"
+  echo "==> Setting up Argo CD for environment '$env' (repo ${repo_name})..."
 
   # Validate environment name
   case "$env" in
@@ -1014,7 +1060,6 @@ setup_argocd_environment() {
       ;;
   esac
 
-  local repo_name="${APP_NAME}-argocd-${env}"
   # Use GITHUB_TOKEN (HTTPS) when set so clone works even if the account running the script lacks SSH access
   local repo_url
   if [ -n "${GITHUB_TOKEN:-}" ]; then
@@ -1027,8 +1072,7 @@ setup_argocd_environment() {
   if [ ! -d "$repo_name" ]; then
     info "Cloning repository: $repo_name"
     if ! git clone "$repo_url" "$repo_name" 2>/dev/null; then
-      error "Failed to clone repository: $repo_name"
-      error "Please ensure the repository exists and GITHUB_TOKEN (or SSH) has access to it"
+      error "Could not clone ${repo_url}. Ensure your git credentials have access to this repository."
       return 1
     fi
   else
@@ -1092,13 +1136,15 @@ EOF
 
   # Execute setup-argocd.sh
   info "Executing setup-argocd.sh for environment: $env"
-  if ! ENVIRONMENT="$env" ./setup-argocd.sh; then
-    error "setup-argocd.sh failed for environment: $env"
+  local setup_exit=0
+  ENVIRONMENT="$env" ./setup-argocd.sh || setup_exit=$?
+  if [ "$setup_exit" -ne 0 ]; then
+    error "setup-argocd.sh for environment '$env' failed (exit code ${setup_exit}). See the output above for details; common causes are missing git identity, no write access to the argocd-env repo, or missing cluster access."
     cd ..
     return 1
   fi
 
-  echo -e "${GREEN}✓ Argo CD setup completed for environment: $env${NC}"
+  echo -e "${GREEN}✓ Argo CD setup completed for '$env'.${NC}"
 
   # Return to previous directory
   cd ..
