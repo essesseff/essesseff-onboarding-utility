@@ -326,6 +326,7 @@ read_config() {
   # Set defaults
   REPOSITORY_VISIBILITY="${REPOSITORY_VISIBILITY:-private}"
   APP_DESCRIPTION="${APP_DESCRIPTION:-}"
+  K8S_NAMESPACE="${K8S_NAMESPACE:-}"
 
   # Normalize GitHub org and app name: trim and force lowercase for string replacement and repo naming
   if [ -n "${GITHUB_ORG:-}" ]; then
@@ -334,8 +335,30 @@ read_config() {
   if [ -n "${APP_NAME:-}" ]; then
     APP_NAME=$(echo "$APP_NAME" | xargs | tr '[:upper:]' '[:lower:]')
   fi
+  if [ -n "${K8S_NAMESPACE:-}" ]; then
+    K8S_NAMESPACE=$(echo "$K8S_NAMESPACE" | xargs | tr '[:upper:]' '[:lower:]')
+  fi
 
   info "Configuration loaded successfully"
+}
+
+# Validate Kubernetes namespace (DNS label: lowercase, digits, hyphens; start/end alphanumeric; max 63 chars).
+# Returns 0 if valid, 1 otherwise. Prints error to stderr.
+validate_k8s_namespace() {
+  local ns="$1"
+  if [ -z "$ns" ]; then
+    error "Kubernetes namespace cannot be empty."
+    return 1
+  fi
+  if [ "${#ns}" -gt 63 ]; then
+    error "Kubernetes namespace must be at most 63 characters."
+    return 1
+  fi
+  if ! [[ "$ns" =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ ]]; then
+    error "Kubernetes namespace must contain only lowercase letters, numbers, and hyphens, and must start and end with a letter or number."
+    return 1
+  fi
+  return 0
 }
 
 # Check if git user.name and user.email are set (repo or global). Return 0 if both set, 1 otherwise.
@@ -659,14 +682,29 @@ create_app() {
       '{template_org_login: $org_login, source_template_repo: $source_repo, is_global_template: false, replacement_string: $replacement}')
   fi
 
-  # Build request body
+  # Build request body (include k8s_namespace only if set)
   local request_body
-  request_body=$(jq -n \
-    --argjson template "$template_json" \
-    --arg language "$template_language" \
-    --arg visibility "${REPOSITORY_VISIBILITY:-private}" \
-    --arg description "${APP_DESCRIPTION:-}" \
-    '{programming_language: $language, template: $template, repository_visibility: $visibility, description: $description}')
+  if [ -n "${K8S_NAMESPACE:-}" ]; then
+    if ! validate_k8s_namespace "$K8S_NAMESPACE"; then
+      error "K8S_NAMESPACE from config is invalid. Fix or remove it from $CONFIG_FILE"
+      exit 1
+    fi
+    request_body=$(jq -n \
+      --argjson template "$template_json" \
+      --arg language "$template_language" \
+      --arg visibility "${REPOSITORY_VISIBILITY:-private}" \
+      --arg description "${APP_DESCRIPTION:-}" \
+      --arg k8s_namespace "$K8S_NAMESPACE" \
+      '{programming_language: $language, template: $template, repository_visibility: $visibility, description: $description, k8s_namespace: $k8s_namespace}')
+  else
+    # When K8S_NAMESPACE is unset, API will use target GitHub org as namespace (validated server-side)
+    request_body=$(jq -n \
+      --argjson template "$template_json" \
+      --arg language "$template_language" \
+      --arg visibility "${REPOSITORY_VISIBILITY:-private}" \
+      --arg description "${APP_DESCRIPTION:-}" \
+      '{programming_language: $language, template: $template, repository_visibility: $visibility, description: $description}')
+  fi
 
   # Create app via API
   info "Calling essesseff API to create app..."
@@ -725,6 +763,22 @@ create_app_non_subscriber() {
   if [ -z "$template_org_login" ] || [ -z "$source_template_repo" ] || [ -z "$replacement_string" ]; then
     error "Bundled template missing required fields (template_org_login, source_template_repo, replacement_string)"
     exit 1
+  fi
+
+  # Resolve effective K8s namespace for {{K8S_NAMESPACE}}: explicit K8S_NAMESPACE or fallback to GITHUB_ORG (both must be valid)
+  local effective_k8s_namespace
+  if [ -n "${K8S_NAMESPACE:-}" ]; then
+    if ! validate_k8s_namespace "$K8S_NAMESPACE"; then
+      error "K8S_NAMESPACE from config is invalid. Fix or remove it from $CONFIG_FILE"
+      exit 1
+    fi
+    effective_k8s_namespace="$K8S_NAMESPACE"
+  else
+    if ! validate_k8s_namespace "$GITHUB_ORG"; then
+      error "GITHUB_ORG '$GITHUB_ORG' is not a valid Kubernetes namespace (used when K8S_NAMESPACE is unset). Use a DNS-label-compliant org name or set K8S_NAMESPACE in $CONFIG_FILE."
+      exit 1
+    fi
+    effective_k8s_namespace="$GITHUB_ORG"
   fi
 
   # Clone to current working directory so you can inspect repos and debug replacement (no temp dir cleanup)
@@ -830,7 +884,7 @@ create_app_non_subscriber() {
     fi
 
     cd "$clone_dir" || { error "Failed to cd to $clone_dir"; exit 1; }
-    apply_replacements_and_rename "$template_org_login" "$GITHUB_ORG" "$replacement_string" "$APP_NAME" "$config_repo_id"
+    apply_replacements_and_rename "$template_org_login" "$GITHUB_ORG" "$replacement_string" "$APP_NAME" "$config_repo_id" "$effective_k8s_namespace"
     git add -A
     git commit -m "Apply template string replacement: ${replacement_string} -> ${APP_NAME}, template org -> ${GITHUB_ORG}"
     cd "$work_dir" || { error "Failed to cd back to $work_dir"; exit 1; }
@@ -865,16 +919,19 @@ create_app_non_subscriber() {
 
 # String replacement and renames: same order and rules as essesseff UX/API (create-app flow).
 # Optional 5th arg: GitHub repo ID for the matching Helm config-env repo; replaces {{REPOSITORY_ID}} in Argo CD app-of-apps (env-specific).
+# 6th arg: K8s namespace for {{K8S_NAMESPACE}} (validated by caller); if unset, target_org is used.
 apply_replacements_and_rename() {
   local template_org=$1
   local target_org=$2
   local replacement_str=$3
   local app_name=$4
   local repository_id=${5:-}
+  local k8s_namespace=${6:-$target_org}
   local placeholder='{{REPOSITORY_ID}}'
+  local k8s_placeholder='{{K8S_NAMESPACE}}'
   local f path base newbase parent tmpfile
 
-  # --- File contents: org, replacement_string, helloworld if hello-world, then {{REPOSITORY_ID}} if repository_id set ---
+  # --- File contents: org, replacement_string, helloworld if hello-world, {{REPOSITORY_ID}} if set, then {{K8S_NAMESPACE}} ---
   while IFS= read -r -d '' f; do
     grep -Iq . "$f" 2>/dev/null || continue
     tmpfile=$(mktemp)
@@ -885,6 +942,7 @@ apply_replacements_and_rename() {
       line="${line//${replacement_str}/${app_name}}"
       [ "$replacement_str" = "hello-world" ] && line="${line//helloworld/${app_name}}"
       [ -n "$repository_id" ] && line="${line//${placeholder}/${repository_id}}"
+      line="${line//${k8s_placeholder}/${k8s_namespace}}"
       printf '%s\n' "$line" >&3
     done < "$f"
     exec 3>&-

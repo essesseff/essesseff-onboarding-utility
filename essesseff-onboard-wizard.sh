@@ -89,6 +89,24 @@ validate_app_name() {
   return 0
 }
 
+# Kubernetes namespace (DNS label) validation. Returns 0 if valid, 1 otherwise.
+validate_k8s_namespace() {
+  local ns="$1"
+  if [ -z "$ns" ]; then
+    error "Kubernetes namespace cannot be empty."
+    return 1
+  fi
+  if [ "${#ns}" -gt 63 ]; then
+    error "Kubernetes namespace must be at most 63 characters."
+    return 1
+  fi
+  if ! [[ "$ns" =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ ]]; then
+    error "Kubernetes namespace must contain only lowercase letters, numbers, and hyphens, and must start and end with a letter or number."
+    return 1
+  fi
+  return 0
+}
+
 choose_mode() {
   echo "Are you an essesseff subscriber?"
   echo "  1) Yes, subscriber mode (use essesseff API)"
@@ -118,6 +136,17 @@ collect_core_config() {
       break
     fi
   done
+
+  echo "Kubernetes namespace (K8S_NAMESPACE, optional). If left blank, the target GitHub org will be used."
+  prompt_with_default "K8S_NAMESPACE" "K8S_NAMESPACE (optional)"
+  if [ -n "${K8S_NAMESPACE:-}" ]; then
+    K8S_NAMESPACE=$(echo "$K8S_NAMESPACE" | xargs | tr '[:upper:]' '[:lower:]')
+    while ! validate_k8s_namespace "$K8S_NAMESPACE"; do
+      read -r -p "Enter a valid Kubernetes namespace (or leave blank to use GitHub org): " K8S_NAMESPACE
+      K8S_NAMESPACE=$(echo "$K8S_NAMESPACE" | xargs | tr '[:upper:]' '[:lower:]')
+      [ -z "$K8S_NAMESPACE" ] && break
+    done
+  fi
 
   if [ "${NON_ESSESSEFF_SUBSCRIBER_MODE:-false}" = false ]; then
     prompt_with_default "ESSESSEFF_API_KEY" "essesseff API key (ESSESSEFF_API_KEY)" true
@@ -218,6 +247,7 @@ ESSESSEFF_ACCOUNT_SLUG=${ESSESSEFF_ACCOUNT_SLUG:-}
 NON_ESSESSEFF_SUBSCRIBER_MODE=${NON_ESSESSEFF_SUBSCRIBER_MODE:-false}
 GITHUB_ORG=${GITHUB_ORG:-}
 APP_NAME=${APP_NAME:-}
+K8S_NAMESPACE=${K8S_NAMESPACE:-}
 TEMPLATE_NAME=${TEMPLATE_NAME:-}
 TEMPLATE_IS_GLOBAL=${TEMPLATE_IS_GLOBAL:-}
 GITHUB_ORG_ADMIN_PAT=${GITHUB_ORG_ADMIN_PAT:-}
