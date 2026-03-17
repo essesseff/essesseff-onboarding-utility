@@ -1143,6 +1143,23 @@ setup_argocd_environment() {
     return 1
   }
 
+  # Resolve effective K8s namespace for this environment's Argo CD repo:
+  # prefer explicit K8S_NAMESPACE from config, otherwise fall back to GITHUB_ORG.
+  local effective_k8s_namespace
+  if [ -n "${K8S_NAMESPACE:-}" ]; then
+    if ! validate_k8s_namespace "$K8S_NAMESPACE"; then
+      error "K8S_NAMESPACE from config is invalid. Fix or remove it from $CONFIG_FILE"
+      return 1
+    fi
+    effective_k8s_namespace="$K8S_NAMESPACE"
+  else
+    if ! validate_k8s_namespace "$GITHUB_ORG"; then
+      error "GITHUB_ORG '$GITHUB_ORG' is not a valid Kubernetes namespace (used when K8S_NAMESPACE is unset). Use a DNS-label-compliant org name or set K8S_NAMESPACE in $CONFIG_FILE."
+      return 1
+    fi
+    effective_k8s_namespace="$GITHUB_ORG"
+  fi
+
   # Create .env file with only necessary variables
   info "Creating .env file..."
   cat > .env << EOF
@@ -1155,6 +1172,7 @@ ARGOCD_MACHINE_EMAIL="${ARGOCD_MACHINE_EMAIL}"
 GITHUB_ORG="${GITHUB_ORG}"
 APP_NAME="${APP_NAME}"
 ENVIRONMENT="${env}"
+K8S_NAMESPACE="${effective_k8s_namespace}"
 EOF
 
   # Copy notifications-secret.yaml (only when provided; in non-subscriber mode we do not provide it,
