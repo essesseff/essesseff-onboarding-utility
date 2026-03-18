@@ -109,6 +109,7 @@ The utility reads configuration from a `.essesseff` file (by default). Create th
 ### Optional Configuration Variables
 - `APP_DESCRIPTION` - App description (optional for `--create-app`)
 - `REPOSITORY_VISIBILITY` - Repository visibility: `private` or `public` (default: `private`)
+- `K8S_NAMESPACE` - if specified, this character string is used in place of the default destination K8s namespace matching the target GitHub org character string.  Must be DNS compliant and less than 63 characters.
 
 ### Additional, Optional Configuration Variables for essesseff Subscribers Only
 - `ARGOCD_INSTANCE_URL` - (optional, for `--setup-argocd` only) Base URL of your Argo CD instance (e.g. `https://argocd.example.com`). When set, the utility registers each environment's Argo CD application URL with essesseff (e.g. `https://argocd.example.com/applications/argocd/my-app-dev`), so the app's deployment cards and settings can link directly to the Argo CD application.
@@ -222,6 +223,7 @@ When setting up Argo CD, the utility creates `.env` files in each Argo CD reposi
 - `GITHUB_ORG`
 - `APP_NAME`
 - `ENVIRONMENT` (set per-environment: dev, qa, staging, or prod)
+- `K8S_NAMESPACE` (if specified; otherwise, destination K8s namespace is set to `GITHUB_ORG` character string, which must also be DNS compliant and less than 63 characters)
 
 (For essesseff subscribers only) API-related variables (`ESSESSEFF_API_KEY`, `ESSESSEFF_API_BASE_URL`, `ESSESSEFF_ACCOUNT_SLUG`) and app creation variables (`APP_DESCRIPTION`, `REPOSITORY_VISIBILITY`, `TEMPLATE_NAME`, `TEMPLATE_IS_GLOBAL`) are NOT copied to the `.env` files as they are not needed by `setup-argocd.sh`.
 
