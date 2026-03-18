@@ -21,9 +21,9 @@ Before using the essesseff onboarding utility, ensure the following prerequisite
 
 ### Required Prerequisites
 
-1. **Argo CD Setup**:
-
-   Be sure to configure Argo CD, including the Argo CD Notifications server, by running the [setup-argocd-cluster.sh](https://github.com/essesseff/essesseff-onboarding-utility/blob/main/setup-argocd-cluster.sh)
+1. **Kubernetes (K8s) and Argo CD Setup**:
+   - BYO K8s (even a single VM k3s K8s will suffice)
+   - Be sure to install/configure Argo CD on your K8s cluster(s), including the Argo CD Notifications server, by running the [setup-argocd-cluster.sh](https://github.com/essesseff/essesseff-onboarding-utility/blob/main/setup-argocd-cluster.sh)
    
 2. **GitHub Organization Setup**:
    
@@ -44,23 +44,18 @@ Before using the essesseff onboarding utility, ensure the following prerequisite
    - `git` (for repository cloning; git profile with commit/push access to argocd-env repos also required for `--setup-argocd`)
    - `jq` (for JSON parsing)
    - `kubectl` (required if using `--setup-argocd`)
-  
-4. **Kubernetes (K8s) and Argo CD**:
-   - BYO K8s (even a single VM k3s K8s will suffice)
-   - Install Argo CD on your K8s cluster(s)
-      - [setup-argocd-cluster.sh](https://github.com/essesseff/essesseff-onboarding-utility/blob/main/setup-argocd-cluster.sh) in this repo provides easy Argo CD setup
 
-5. **kubectl Configuration** (required for `--setup-argocd`):
+4. **kubectl Configuration** (required for `--setup-argocd`):
    - `kubectl` must be installed and configured for each K8s target environment
    - Kubernetes cluster access must be available for each target environment
    - Proper permissions to create secrets, configmaps, and Argo CD applications
    - **Important**: `kubectl` configuration is a prerequisite that must be completed before running the utility
 
-6. **essesseff API Key** (required for essesseff subscribers; not used with `--non-essesseff-subscriber-mode`):
+5. **essesseff API Key** (required for essesseff subscribers; not used with `--non-essesseff-subscriber-mode`):
    - Valid essesseff API key, available from essesseff team settings page
    - API key must belong to the account specified in `ESSESSEFF_ACCOUNT_SLUG` in .essesseff file
 
-7. **GitHub Machine User** (required for `--setup-argocd`):
+6. **GitHub Machine User** (required for `--setup-argocd`):
    - ***Not to be confused with GitHub org admin PAT if running with `--non-essesseff-subscriber-mode`***
    - GitHub machine user account created for Argo CD to be able to pull container image(s) from GHCR and env-specific config from git repository(ies)
    - Personal Access Token (PAT) with `repo` and `read:packages` scopes
