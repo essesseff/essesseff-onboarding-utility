@@ -241,23 +241,33 @@ write_config_file() {
   echo ""
   echo "Writing configuration to ${CONFIG_FILE}..."
 
+  shell_quote() {
+    # Produce a double-quoted, shell-safe string literal for bash assignments.
+    # We escape backslashes and double quotes; values should not contain newlines.
+    local s="${1:-}"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    printf '"%s"' "$s"
+  }
+
   cat > "$CONFIG_FILE" <<EOF
-ESSESSEFF_API_KEY=${ESSESSEFF_API_KEY:-}
-ESSESSEFF_ACCOUNT_SLUG=${ESSESSEFF_ACCOUNT_SLUG:-}
-NON_ESSESSEFF_SUBSCRIBER_MODE=${NON_ESSESSEFF_SUBSCRIBER_MODE:-false}
-GITHUB_ORG=${GITHUB_ORG:-}
-APP_NAME=${APP_NAME:-}
-K8S_NAMESPACE=${K8S_NAMESPACE:-}
-TEMPLATE_NAME=${TEMPLATE_NAME:-}
-TEMPLATE_IS_GLOBAL=${TEMPLATE_IS_GLOBAL:-}
-GITHUB_ORG_ADMIN_PAT=${GITHUB_ORG_ADMIN_PAT:-}
-ARGOCD_MACHINE_USER=${ARGOCD_MACHINE_USER:-}
-GITHUB_TOKEN=${GITHUB_TOKEN:-}
-ARGOCD_MACHINE_EMAIL=${ARGOCD_MACHINE_EMAIL:-}
-ESSESSEFF_API_BASE_URL=${ESSESSEFF_API_BASE_URL:-}
-APP_DESCRIPTION=${APP_DESCRIPTION:-}
-REPOSITORY_VISIBILITY=${REPOSITORY_VISIBILITY:-private}
-ARGOCD_INSTANCE_URL=${ARGOCD_INSTANCE_URL:-}
+ESSESSEFF_API_KEY=$(shell_quote "${ESSESSEFF_API_KEY:-}")
+ESSESSEFF_ACCOUNT_SLUG=$(shell_quote "${ESSESSEFF_ACCOUNT_SLUG:-}")
+NON_ESSESSEFF_SUBSCRIBER_MODE=$(shell_quote "${NON_ESSESSEFF_SUBSCRIBER_MODE:-false}")
+GITHUB_ORG=$(shell_quote "${GITHUB_ORG:-}")
+APP_NAME=$(shell_quote "${APP_NAME:-}")
+K8S_NAMESPACE=$(shell_quote "${K8S_NAMESPACE:-}")
+TEMPLATE_NAME=$(shell_quote "${TEMPLATE_NAME:-}")
+TEMPLATE_IS_GLOBAL=$(shell_quote "${TEMPLATE_IS_GLOBAL:-}")
+GITHUB_ORG_ADMIN_PAT=$(shell_quote "${GITHUB_ORG_ADMIN_PAT:-}")
+ARGOCD_MACHINE_USER=$(shell_quote "${ARGOCD_MACHINE_USER:-}")
+GITHUB_TOKEN=$(shell_quote "${GITHUB_TOKEN:-}")
+ARGOCD_MACHINE_EMAIL=$(shell_quote "${ARGOCD_MACHINE_EMAIL:-}")
+ESSESSEFF_API_BASE_URL=$(shell_quote "${ESSESSEFF_API_BASE_URL:-}")
+APP_DESCRIPTION=$(shell_quote "${APP_DESCRIPTION:-}")
+REPOSITORY_VISIBILITY=$(shell_quote "${REPOSITORY_VISIBILITY:-private}")
+ARGOCD_INSTANCE_URL=$(shell_quote "${ARGOCD_INSTANCE_URL:-}")
 EOF
 
   info "Configuration saved to ${CONFIG_FILE}"
@@ -300,8 +310,10 @@ run_or_print_command() {
   if [ -n "${SETUP_ARGOCD_ENVS:-}" ]; then
     cmd="$cmd --setup-argocd ${SETUP_ARGOCD_ENVS}"
   fi
+  # Always create the app as part of the wizard flow.
+  # In non-subscriber mode, creation is done via clone/replace/push.
   if [ "${NON_ESSESSEFF_SUBSCRIBER_MODE:-false}" = true ]; then
-    cmd="$cmd --non-essesseff-subscriber-mode"
+    cmd="$cmd --create-app --non-essesseff-subscriber-mode"
   else
     cmd="$cmd --create-app"
   fi
