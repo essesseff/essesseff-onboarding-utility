@@ -55,7 +55,7 @@ if kubectl get namespace argocd &> /dev/null; then
   else
     echo "  ⚠️  Argo CD namespace exists but server deployment not found"
     echo "     Installing Argo CD..."
-    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+    kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
     echo "  ✓ Argo CD installation manifest applied"
     echo "     Waiting for Argo CD server to be ready (this may take a few minutes)..."
     kubectl wait --for=condition=available --timeout=600s deployment/argocd-server -n argocd || {
@@ -71,7 +71,7 @@ else
   echo "  ✓ Created argocd namespace"
   
   # Install Argo CD
-  kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+  kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
   echo "  ✓ Argo CD installation manifest applied"
   
   echo ""
